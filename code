@@ -1,0 +1,52 @@
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+
+contract MyNFT is ERC721 {
+    using Counters for Counters.Counter;
+    Counters.Counter private _tokenIds;
+
+    mapping(uint256 => address) private _tokenCreators;
+    mapping(address => uint256[]) private _ownedTokens;
+    mapping(uint256 => uint256) private _tokenPrices;
+
+    constructor() ERC721("MyNFT", "MNFT") {}
+
+    function mintNFT(address recipient, string memory tokenURI, uint256 price) public returns (uint256) {
+        _tokenIds.increment();
+        uint256 newItemId = _tokenIds.current();
+        _mint(recipient, newItemId);
+        _setTokenURI(newItemId, tokenURI);
+        _tokenCreators[newItemId] = msg.sender;
+        _ownedTokens[recipient].push(newItemId);
+        _tokenPrices[newItemId] = price;
+        return newItemId;
+    }
+
+    function getCreator(uint256 tokenId) public view returns (address) {
+        return _tokenCreators[tokenId];
+    }
+
+    function getOwnedTokens(address owner) public view returns (uint256[] memory) {
+        return _ownedTokens[owner];
+    }
+
+    function getTokenPrice(uint256 tokenId) public view returns (uint256) {
+        return _tokenPrices[tokenId];
+    }
+
+    function setTokenPrice(uint256 tokenId, uint256 price) public {
+        require(_exists(tokenId), "Token does not exist");
+        require(msg.sender == ownerOf(tokenId), "Only the owner can set the price");
+        _tokenPrices[tokenId] = price;
+    }
+
+    function buyToken(uint256 tokenId) public payable {
+        require(_exists(tokenId), "Token does not exist");
+        require(msg.value == _tokenPrices[tokenId], "Incorrect payment amount");
+        address payable seller = payable(ownerOf(tokenId));
+        _transfer(seller, msg.sender, tokenId);
+        seller.transfer(msg.value);
+    }
+}
